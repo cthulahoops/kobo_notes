@@ -1,0 +1,13 @@
+# {{book.Title}}
+## {{book.Subtitle}}
+### {{book.Attribution}}
+
+{% for day, annotations in annotated_days %}
+
+### [[{{day}}]]
+
+{% for annotation in annotations %}
+{{ annotation.Text |trim|wordwrap(70) }}
+{% endfor %}
+
+{% endfor %}
