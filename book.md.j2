@@ -1,13 +1,14 @@
 # {{book.Title}}
+{%- if book.Subtitle %}
 ## {{book.Subtitle}}
+{%- endif %}
 ### {{book.Attribution}}
 
+{{ book.Description | trim | html_to_markdown }}
+## Highlights
 {% for day, annotations in annotated_days %}
-
 ### [[{{day}}]]
-
 {% for annotation in annotations %}
-{{ annotation.Text |trim|wordwrap(70) }}
+{{ annotation.Text |trim }}
 {% endfor %}
-
 {% endfor %}
