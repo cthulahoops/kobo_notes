@@ -59,10 +59,10 @@ def main(db_file, output_dir):
     import_date = datetime.now()
 
     with status_db_connection(output_dir) as status_db:
-        annotations = list(filter(is_already_imported(status_db), annotations))
-        print(f"Importing {len(annotations)} new annotations")
+        annotations = filter(is_already_imported(status_db), annotations)
         for content_id, annotations in group_by_key(annotations, "VolumeID"):
             book = books[content_id]
+            print(f"Importing {len(annotations)} new annotations for {book['Title']}")
             book_filename = output_filename(output_dir, book)
 
             if not book_filename.exists():
