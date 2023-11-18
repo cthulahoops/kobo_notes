@@ -1,0 +1,7 @@
+## Highlights: {{ import_date }}
+{% for day, annotations in annotated_days %}
+### [[{{day}}]]
+{% for annotation in annotations %}
+{{ annotation.Text |trim }}
+{% endfor %}
+{% endfor %}

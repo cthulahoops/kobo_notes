@@ -9,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 
 ANNOTATIONS = """
     select
+    Bookmark.BookmarkID,
     Bookmark.ContentID,
     Bookmark.VolumeID,
     Bookmark.Text,
@@ -52,19 +53,33 @@ def main(db_file, output_dir):
         autoescape=True,
     )
     env.filters["html_to_markdown"] = html_to_markdown
-    template = env.get_template("book.md.j2")
+    book_template = env.get_template("book.md.j2")
+    annotations_template = env.get_template("annotations.md.j2")
 
-    for content_id, annotations in group_by_key(annotations, "VolumeID"):
-        book = books[content_id]
+    import_date = datetime.now()
 
-        annotated_days = itertools.groupby(annotations, annotation_date)
+    with status_db_connection(output_dir) as status_db:
+        annotations = filter(is_already_imported(status_db), annotations)
+        for content_id, annotations in group_by_key(annotations, "VolumeID"):
+            book = books[content_id]
 
-        output = template.render(
-            book=book,
-            annotated_days=annotated_days,
-        )
-        with open(output_filename(output_dir, book), "w") as output_file:
-            output_file.write(output)
+            book_header = book_template.render(
+                book=book,
+            )
+
+            with open(output_filename(output_dir, book), "w") as output_file:
+                output_file.write(book_header)
+
+            annotated_days = itertools.groupby(annotations, annotation_date)
+
+            annotations_md = annotations_template.render(
+                annotated_days=annotated_days,
+                import_date=import_date,
+            )
+            with open(output_filename(output_dir, book), "a") as output_file:
+                output_file.write(annotations_md)
+
+            save_as_imported(status_db, import_date, annotations)
 
 
 def html_to_markdown(html):
@@ -90,6 +105,34 @@ def query(conn, query):
 
 def output_filename(output_dir, book):
     return Path(output_dir) / f"{book['Title']}.md"
+
+
+def init_status_db(db_path):
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("create table imported (bookmark_id, date_imported)")
+
+
+def status_db_connection(output_dir):
+    db_path = Path(output_dir) / ".kobo-export.sqlite"
+    if not db_path.exists():
+        init_status_db(db_path)
+    return sqlite3.connect(db_path)
+
+
+def is_already_imported(status_db):
+    def predicate(annotation):
+        status_db.execute(
+            "select * from imported where bookmark_id = ?", (annotation["BookmarkID"])
+        )
+        return status_db.fetchone() is not None
+
+
+def save_as_imported(status_db, import_date, annotations):
+    status_db.executemany(
+        "insert into imported (bookmark_id, date_imported) values (?, ?)",
+        [(annotation["BookmarkID"], import_date) for annotation in annotations],
+    )
+    status_db.commit()
 
 
 if __name__ == "__main__":
