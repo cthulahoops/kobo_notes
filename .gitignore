@@ -1,2 +1,4 @@
 *.sqlite
 output
+.envrc
+__pycache__
