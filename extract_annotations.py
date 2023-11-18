@@ -59,7 +59,8 @@ def main(db_file, output_dir):
     import_date = datetime.now()
 
     with status_db_connection(output_dir) as status_db:
-        annotations = filter(is_already_imported(status_db), annotations)
+        annotations = list(filter(is_already_imported(status_db), annotations))
+        print(f"Importing {len(annotations)} new annotations")
         for content_id, annotations in group_by_key(annotations, "VolumeID"):
             book = books[content_id]
 
@@ -113,7 +114,7 @@ def init_status_db(db_path):
 
 
 def status_db_connection(output_dir):
-    db_path = Path(output_dir) / ".kobo-export.sqlite"
+    db_path = Path(output_dir) / "kobo-export.sqlite"
     if not db_path.exists():
         init_status_db(db_path)
     return sqlite3.connect(db_path)
@@ -121,10 +122,15 @@ def status_db_connection(output_dir):
 
 def is_already_imported(status_db):
     def predicate(annotation):
-        status_db.execute(
-            "select * from imported where bookmark_id = ?", (annotation["BookmarkID"])
+        cursor = status_db.cursor()
+        cursor.execute(
+            "select exists(select 1 from imported where bookmark_id = ?)",
+            (annotation["BookmarkID"],),
         )
-        return status_db.fetchone() is not None
+        (exists,) = cursor.fetchone()
+        return not exists
+
+    return predicate
 
 
 def save_as_imported(status_db, import_date, annotations):
