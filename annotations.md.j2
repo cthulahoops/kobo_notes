@@ -1,4 +1,4 @@
-## Highlights: {{ import_date }}
+## Highlights: {{ import_date.strftime('%Y-%m-%d %H:%M') }}
 {% for day, annotations in annotated_days %}
 ### [[{{day}}]]
 {% for annotation in annotations %}
