@@ -63,24 +63,27 @@ def main(db_file, output_dir):
         print(f"Importing {len(annotations)} new annotations")
         for content_id, annotations in group_by_key(annotations, "VolumeID"):
             book = books[content_id]
+            book_filename = output_filename(output_dir, book)
 
-            book_header = book_template.render(
-                book=book,
-            )
-
-            with open(output_filename(output_dir, book), "w") as output_file:
-                output_file.write(book_header)
+            if not book_filename.exists():
+                render_to_file(book_template, book_filename, book=book)
 
             annotated_days = itertools.groupby(annotations, annotation_date)
 
-            annotations_md = annotations_template.render(
+            render_to_file(
+                annotations_template,
+                book_filename,
                 annotated_days=annotated_days,
                 import_date=import_date,
             )
-            with open(output_filename(output_dir, book), "a") as output_file:
-                output_file.write(annotations_md)
 
             save_as_imported(status_db, import_date, annotations)
+
+
+def render_to_file(template, filename, **kwargs):
+    output = template.render(**kwargs)
+    with open(filename, "a") as output_file:
+        output_file.write(output)
 
 
 def html_to_markdown(html):
