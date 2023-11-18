@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 import itertools
+from functools import partial
 from pathlib import Path
 import click
 import sqlite3
@@ -59,7 +60,7 @@ def main(db_file, output_dir):
     import_date = datetime.now()
 
     with status_db_connection(output_dir) as status_db:
-        annotations = filter(is_already_imported(status_db), annotations)
+        annotations = filter(partial(is_already_imported, status_db), annotations)
         for content_id, annotations in group_by_key(annotations, "VolumeID"):
             book = books[content_id]
             print(f"Importing {len(annotations)} new annotations for {book['Title']}")
@@ -111,9 +112,12 @@ def output_filename(output_dir, book):
     return Path(output_dir) / f"{book['Title']}.md"
 
 
+STATUS_DB_SCHEMA = "create table imported (bookmark_id, date_imported)"
+
+
 def init_status_db(db_path):
     with sqlite3.connect(db_path) as conn:
-        conn.execute("create table imported (bookmark_id, date_imported)")
+        conn.execute(STATUS_DB_SCHEMA)
 
 
 def status_db_connection(output_dir):
@@ -123,17 +127,14 @@ def status_db_connection(output_dir):
     return sqlite3.connect(db_path)
 
 
-def is_already_imported(status_db):
-    def predicate(annotation):
-        cursor = status_db.cursor()
-        cursor.execute(
-            "select exists(select 1 from imported where bookmark_id = ?)",
-            (annotation["BookmarkID"],),
-        )
-        (exists,) = cursor.fetchone()
-        return not exists
-
-    return predicate
+def is_already_imported(status_db, annotation):
+    cursor = status_db.cursor()
+    cursor.execute(
+        "select exists(select 1 from imported where bookmark_id = ?)",
+        (annotation["BookmarkID"],),
+    )
+    (exists,) = cursor.fetchone()
+    return not exists
 
 
 def save_as_imported(status_db, import_date, annotations):
