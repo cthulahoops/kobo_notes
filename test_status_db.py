@@ -29,3 +29,12 @@ def test_not_imported(status_db):
     assert extract_annotations.is_already_imported(
         status_db, {"BookmarkID": 2}
     ), "The annotation is not imported but was detected as such"
+
+
+def test_different_item_unimported(status_db):
+    test_annotation = {"BookmarkID": 1}
+    extract_annotations.save_as_imported(status_db, "2020-01-01", [test_annotation])
+
+    assert extract_annotations.is_already_imported(
+        status_db, {"BookmarkID": 2}
+    ), "The annotation is not imported but was detected as such"
